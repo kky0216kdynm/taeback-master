@@ -1,150 +1,317 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { api } from "../api.js";
-import Table from "../components/Table.jsx";
-import Modal from "../components/Modal.jsx";
-import FileDrop from "../components/FileDrop.jsx";
-import Select from "../components/Select.jsx";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "../utils/api";
+import Table from "../components/Table";
+import Modal from "../components/Modal";
 
 export default function Stores() {
   const [headOffices, setHeadOffices] = useState([]);
   const [headOfficeId, setHeadOfficeId] = useState("");
-  const [rows, setRows] = useState([]);
+  const [stores, setStores] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
   const [openAdd, setOpenAdd] = useState(false);
-  const [openUpload, setOpenUpload] = useState(false);
-  const [uploadResult, setUploadResult] = useState(null);
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    status: "ACTIVE",
+  });
 
-  const [form, setForm] = useState({ name: "", address: "", phone: "", status: "ACTIVE" });
+  const fileRef = useRef(null);
 
-  useEffect(() => {
-    (async () => {
-      const r = await api("/master/head-offices");
-      const hos = r.headOffices || [];
-      setHeadOffices(hos);
-      if (hos[0]) setHeadOfficeId(String(hos[0].id));
-    })().catch(console.error);
-  }, []);
+  const selectedHead = useMemo(() => {
+    const idNum = Number(headOfficeId);
+    return headOffices.find((h) => Number(h.id) === idNum) || null;
+  }, [headOffices, headOfficeId]);
 
-  async function loadStores(hid) {
-    if (!hid) return;
-    const r = await api(`/master/stores?headOfficeId=${hid}`);
-    setRows(r.stores || []);
+  async function loadHeadOffices() {
+    const r = await api.get("/master/head-offices"); // requireMaster 걸려있으면 헤더 필요
+    if (r?.success) setHeadOffices(r.headOffices || []);
+  }
+
+  async function loadStores(hoId) {
+    if (!hoId) return;
+    setLoading(true);
+    try {
+      const r = await api.get("/master/stores", { headOfficeId: hoId });
+      if (r?.success) setStores(r.stores || []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    loadStores(headOfficeId).catch(console.error);
+    loadHeadOffices();
+  }, []);
+
+  useEffect(() => {
+    if (headOfficeId) loadStores(headOfficeId);
   }, [headOfficeId]);
 
-  const headOfficeOptions = useMemo(
-    () => headOffices.map((h) => ({ value: String(h.id), label: `${h.name} (${h.code})` })),
-    [headOffices]
+  const columns = useMemo(
+    () => [
+      { key: "headOfficeName", label: "본사", width: 180 },
+      { key: "name", label: "가맹점명", width: 240 },
+      { key: "phone", label: "연락처", width: 180 },
+      {
+        key: "auth_code",
+        label: "인증코드",
+        width: 180,
+        render: (row) => (
+          <span
+            style={{
+              display: "inline-block",
+              padding: "6px 10px",
+              borderRadius: 10,
+              background: "#F3F4F6",
+              fontWeight: 700,
+              letterSpacing: 0.5,
+            }}
+          >
+            {row.auth_code || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        label: "상태",
+        width: 120,
+        render: (row) => (
+          <span
+            style={{
+              display: "inline-block",
+              padding: "6px 10px",
+              borderRadius: 999,
+              fontWeight: 700,
+              background:
+                row.status === "ACTIVE"
+                  ? "#DCFCE7"
+                  : row.status === "SOLD_OUT"
+                  ? "#FEE2E2"
+                  : "#E5E7EB",
+              color:
+                row.status === "ACTIVE"
+                  ? "#166534"
+                  : row.status === "SOLD_OUT"
+                  ? "#991B1B"
+                  : "#374151",
+            }}
+          >
+            {row.status === "ACTIVE" ? "활성" : row.status === "INACTIVE" ? "비활성" : row.status}
+          </span>
+        ),
+      },
+      // 관리 컬럼(일단 UI만 맞추고, 수정/삭제 API 붙일 수 있게 버튼만 둠)
+      {
+        key: "_actions",
+        label: "관리",
+        width: 140,
+        render: (row) => (
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button className="iconBtn" title="수정" onClick={() => alert("수정 기능은 다음 단계에서 연결할게요.")}>
+              ✏️
+            </button>
+            <button className="iconBtn danger" title="삭제" onClick={() => alert("삭제 기능은 다음 단계에서 연결할게요.")}>
+              🗑️
+            </button>
+          </div>
+        ),
+      },
+    ],
+    []
   );
 
-  const cols = [
-    { key: "name", label: "가맹점명" },
-    { key: "address", label: "주소" },
-    { key: "phone", label: "연락처" },
-    {
-      key: "auth_code", label: "인증코드",
-      render: (r) => <span className="pill pillBlue">{r.auth_code}</span>
-    },
-    {
-      key: "status", label: "상태",
-      render: (r) => (
-        <span className={`pill ${r.status === "ACTIVE" ? "pillGreen" : "pillRed"}`}>
-          {r.status === "ACTIVE" ? "활성" : "비활성"}
-        </span>
-      )
+  const tableRows = useMemo(() => {
+    const headName = selectedHead?.name || "";
+    return (stores || []).map((s) => ({
+      ...s,
+      headOfficeName: headName,
+    }));
+  }, [stores, selectedHead]);
+
+  async function onAddStore() {
+    if (!headOfficeId) return alert("먼저 본사를 선택하세요.");
+    if (!form.name.trim()) return alert("가맹점명을 입력하세요.");
+
+    const payload = {
+      headOfficeId: Number(headOfficeId),
+      name: form.name.trim(),
+      phone: form.phone.trim() || null,
+      status: form.status || "ACTIVE",
+    };
+
+    const r = await api.post("/master/stores", payload);
+    if (!r?.success) {
+      alert(r?.message || "가맹점 추가 실패");
+      return;
     }
-  ];
+
+    setOpenAdd(false);
+    setForm({ name: "", phone: "", status: "ACTIVE" });
+    loadStores(headOfficeId);
+  }
+
+  async function onUploadExcel(file) {
+    if (!headOfficeId) return alert("먼저 본사를 선택하세요.");
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      // 서버 업로드는 head_office_code를 엑셀에 넣는 방식인데,
+      // UX는 "본사 선택 후 업로드"가 자연스러워서
+      // (서버를 바꿀 수 있다면 headOfficeId 기반 업로드로 바꾸는 걸 추천)
+      const r = await api.postForm("/master/stores/upload", fd);
+      if (!r?.success) {
+        alert(r?.message || "업로드 실패");
+        return;
+      }
+
+      alert(`업로드 완료! inserted=${r.inserted}, failed=${r.failed?.length || 0}`);
+      loadStores(headOfficeId);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
 
   return (
-    <div>
-      <h1 className="h1">가맹점 관리</h1>
-      <div className="sub">본사를 선택하고 가맹점을 등록/업로드합니다</div>
+    <div className="page">
+      {/* 상단 헤더(피그마 느낌) */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#6B7280", fontWeight: 700 }}>
+            <span style={{ cursor: "pointer" }} onClick={() => setHeadOfficeId("")}>
+              ←
+            </span>
+            <span style={{ cursor: "pointer" }} onClick={() => setHeadOfficeId("")}>
+              본사 목록으로
+            </span>
+          </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 16, marginTop: 16 }}>
-        <div style={{ width: 420 }}>
-          <Select
+          <h1 style={{ marginTop: 8, marginBottom: 6 }}>
+            {selectedHead ? `${selectedHead.name} - 가맹점 관리` : "가맹점 관리"}
+          </h1>
+          <div style={{ color: "#6B7280", fontWeight: 600 }}>
+            {selectedHead ? `본사코드: ${selectedHead.code}` : "본사를 선택한 뒤 가맹점을 관리합니다."}
+          </div>
+        </div>
+
+        {/* 우측 컨트롤: 본사 선택 */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <select
             value={headOfficeId}
-            onChange={setHeadOfficeId}
-            options={headOfficeOptions}
-            placeholder="본사 선택"
+            onChange={(e) => setHeadOfficeId(e.target.value)}
+            className="select"
+            style={{ minWidth: 220 }}
+          >
+            <option value="">본사 선택</option>
+            {headOffices.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name} ({h.code})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ height: 18 }} />
+
+      {/* 섹션 타이틀 + 버튼들 */}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>가맹점 관리</h2>
+          <div style={{ marginTop: 6, color: "#6B7280", fontWeight: 600 }}>가맹점 정보를 관리합니다</div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {/* 엑셀 업로드 */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onUploadExcel(f);
+            }}
           />
-          <div className="small" style={{ marginTop: 6 }}>
-            엑셀 업로드 컬럼: head_office_code, store_name, address, phone, status
-          </div>
-        </div>
-
-        <div className="actions">
-          <button className="btnGhost btn" onClick={() => { setUploadResult(null); setOpenUpload(true); }}>
-            엑셀 업로드
+          <button
+            className="btn btnOutline"
+            disabled={!headOfficeId || uploading}
+            onClick={() => fileRef.current?.click()}
+            title="엑셀 업로드"
+          >
+            ⬆️ 엑셀 업로드
           </button>
-          <button className="btnPrimary btn" onClick={() => setOpenAdd(true)}>
-            + 가맹점 추가
+
+          {/* 가맹점 추가 */}
+          <button className="btn" disabled={!headOfficeId} onClick={() => setOpenAdd(true)}>
+            ＋ 가맹점 추가
           </button>
         </div>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <Table columns={cols} rows={rows} />
+      <div style={{ height: 14 }} />
+
+      <div className="card">
+        <Table
+          columns={columns}
+          rows={tableRows}
+          emptyText={headOfficeId ? (loading ? "불러오는 중..." : "가맹점이 없습니다.") : "본사를 선택하세요."}
+        />
       </div>
 
-      {/* 추가 */}
-      <Modal title="가맹점 추가" open={openAdd} onClose={() => setOpenAdd(false)}>
-        <div className="row">
-          <div className="label">가맹점명</div>
-          <input className="input" value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        </div>
-        <div className="row">
-          <div className="label">주소</div>
-          <input className="input" value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })} />
-        </div>
-        <div className="row">
-          <div className="label">연락처</div>
-          <input className="input" value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
-          <button className="btn" onClick={() => setOpenAdd(false)}>취소</button>
-          <button className="btnPrimary btn" onClick={async () => {
-            await api("/master/stores", {
-              method: "POST",
-              body: { headOfficeId: Number(headOfficeId), ...form }
-            });
-            setOpenAdd(false);
-            setForm({ name: "", address: "", phone: "", status: "ACTIVE" });
-            await loadStores(headOfficeId);
-          }}>저장</button>
-        </div>
-      </Modal>
-
-      {/* 업로드 */}
-      <Modal title="가맹점 엑셀 업로드" open={openUpload} onClose={() => setOpenUpload(false)}>
-        <FileDrop onFile={async (file) => {
-          const fd = new FormData();
-          fd.append("file", file);
-          const r = await api("/master/stores/upload", { method: "POST", body: fd, isForm: true });
-          setUploadResult(r);
-          await loadStores(headOfficeId);
-        }} />
-
-        {uploadResult ? (
-          <div style={{ marginTop: 12 }}>
-            <div className="small">
-              성공: {uploadResult.inserted}건 / 실패: {uploadResult.failed?.length || 0}건
-            </div>
-            {!!uploadResult.failed?.length && (
-              <div className="small" style={{ marginTop: 8 }}>
-                {uploadResult.failed.slice(0, 10).map((f, i) => (
-                  <div key={i}>Row {f.rowIndex}: {f.error}</div>
-                ))}
-              </div>
-            )}
+      {/* 추가 모달 */}
+      <Modal open={openAdd} onClose={() => setOpenAdd(false)} title="가맹점 추가">
+        <div style={{ display: "grid", gap: 12 }}>
+          <div className="field">
+            <div className="label">가맹점명</div>
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              placeholder="예) 강남점"
+            />
           </div>
-        ) : null}
+
+          <div className="field">
+            <div className="label">연락처(선택)</div>
+            <input
+              className="input"
+              value={form.phone}
+              onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+              placeholder="예) 02-1234-5678"
+            />
+          </div>
+
+          <div className="field">
+            <div className="label">상태</div>
+            <select
+              className="select"
+              value={form.status}
+              onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+            >
+              <option value="ACTIVE">활성</option>
+              <option value="INACTIVE">비활성</option>
+            </select>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
+            <button className="btn btnGhost" onClick={() => setOpenAdd(false)}>
+              취소
+            </button>
+            <button className="btn" onClick={onAddStore}>
+              저장
+            </button>
+          </div>
+
+          <div style={{ color: "#6B7280", fontSize: 13, marginTop: 4 }}>
+            ※ 가맹점 “인증코드”는 저장 시 서버에서 자동 생성되어 DB에 들어갑니다.
+          </div>
+        </div>
       </Modal>
     </div>
   );
