@@ -1,52 +1,39 @@
 // src/utils/api.js
-const BASE =
-  import.meta.env.VITE_API_BASE ||
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:3000";
+const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
+const MASTER_KEY = import.meta.env.VITE_MASTER_KEY || "";
 
-function buildQuery(params = {}) {
-  const usp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === "") return;
-    usp.append(k, String(v));
-  });
-  const q = usp.toString();
-  return q ? `?${q}` : "";
-}
-
-async function request(method, path, { params, body, headers } = {}) {
-  const url = `${BASE}${path}${buildQuery(params)}`;
+async function request(path, { method = "GET", body, headers = {} } = {}) {
+  const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 
   const res = await fetch(url, {
     method,
     headers: {
       "Content-Type": "application/json",
-      ...(headers || {}),
+      ...(MASTER_KEY ? { "x-master-key": MASTER_KEY } : {}),
+      ...headers,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  // 응답이 JSON이 아닐 수도 있어서 방어
   const text = await res.text();
-  let data = null;
+  let data;
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    data = { success: false, message: text || "Invalid JSON response" };
+    data = { raw: text };
   }
 
   if (!res.ok) {
-    return {
-      success: false,
-      status: res.status,
-      ...data,
-    };
+    const msg = data?.message || data?.error || `HTTP ${res.status}`;
+    throw new Error(msg);
   }
   return data;
 }
 
 export const api = {
-  get: (path, params, opts) => request("GET", path, { params, ...(opts || {}) }),
-  post: (path, body, opts) => request("POST", path, { body, ...(opts || {}) }),
-  patch: (path, body, opts) => request("PATCH", path, { body, ...(opts || {}) }),
-  del: (path, opts) => request("DELETE", path, { ...(opts || {}) }),
+  get: (path) => request(path),
+  post: (path, body) => request(path, { method: "POST", body }),
+  patch: (path, body) => request(path, { method: "PATCH", body }),
+  del: (path) => request(path, { method: "DELETE" }),
 };
