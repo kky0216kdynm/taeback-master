@@ -15,7 +15,7 @@ const items = [
 export default function Sidebar({ route, onRoute }) {
   return (
     <div className="sidebar">
-      <div className="brand">📦 마스터 관리</div>
+      <div className="brand">🔐물류 관리 및 마스터 페이지</div>
 
       <div className="nav">
         {items.map((it) => (
