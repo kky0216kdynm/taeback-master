@@ -10,28 +10,31 @@ import Delivery from "./pages/Delivery.jsx";
 export default function App() {
   const [route, setRoute] = useState("dashboard");
 
-  // ✅ 본사 선택 상태(HeadOffices -> Stores 이동에 사용)
+  // ✅ HeadOffices -> Stores 이동에 사용
   const [selectedHeadOffice, setSelectedHeadOffice] = useState(null);
-  // selectedHeadOffice = { id, name } 형태로 사용
 
   const page = useMemo(() => {
     if (route === "dashboard") return <Dashboard />;
 
-    if (route === "headOffices")
+    if (route === "headOffices") {
       return (
         <HeadOffices
           onOpenStores={(headOffice) => {
-            setSelectedHeadOffice(headOffice);
+            setSelectedHeadOffice(headOffice); // {id, name}
             setRoute("stores");
           }}
         />
       );
+    }
 
-    if (route === "stores") return <Stores selectedHeadOffice={selectedHeadOffice} />;
+    if (route === "stores") {
+      return <Stores selectedHeadOffice={selectedHeadOffice} />;
+    }
 
     if (route === "products") return <Products />;
     if (route === "orders") return <Orders />;
     if (route === "delivery") return <Delivery />;
+
     return <Dashboard />;
   }, [route, selectedHeadOffice]);
 
@@ -39,9 +42,12 @@ export default function App() {
     <Layout
       route={route}
       onRoute={(next) => {
-        // 사이드바에서 stores로 바로 가는 경우도 있으니까
-        // 선택된 본사가 없으면 Stores에서 '본사 선택' UI를 보여주게 하면 됨
+        // ✅ 사이드바로 stores를 눌러도 정상 이동
         setRoute(next);
+
+        // (선택) 본사/가맹점 흐름을 깔끔하게 하고 싶으면:
+        // - 본사 목록으로 가면 선택 본사 초기화
+        if (next === "headOffices") setSelectedHeadOffice(null);
       }}
     >
       {page}

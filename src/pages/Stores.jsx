@@ -3,7 +3,7 @@ import { api } from "../utils/api";
 import Table from "../components/Table";
 import Modal from "../components/Modal";
 
-export default function Stores() {
+export default function Stores({ selectedHeadOffice }) {
   const [headOffices, setHeadOffices] = useState([]);
   const [headOfficeId, setHeadOfficeId] = useState("");
   const [stores, setStores] = useState([]);
@@ -26,7 +26,7 @@ export default function Stores() {
   }, [headOffices, headOfficeId]);
 
   async function loadHeadOffices() {
-    const r = await api.get("/master/head-offices"); // requireMaster 걸려있으면 헤더 필요
+    const r = await api.get("/master/head-offices");
     if (r?.success) setHeadOffices(r.headOffices || []);
   }
 
@@ -44,6 +44,13 @@ export default function Stores() {
   useEffect(() => {
     loadHeadOffices();
   }, []);
+
+  // ✅ HeadOffices에서 넘어온 selectedHeadOffice가 있으면 자동 선택
+  useEffect(() => {
+    if (selectedHeadOffice?.id) {
+      setHeadOfficeId(String(selectedHeadOffice.id));
+    }
+  }, [selectedHeadOffice?.id]);
 
   useEffect(() => {
     if (headOfficeId) loadStores(headOfficeId);
@@ -102,7 +109,6 @@ export default function Stores() {
           </span>
         ),
       },
-      // 관리 컬럼(일단 UI만 맞추고, 수정/삭제 API 붙일 수 있게 버튼만 둠)
       {
         key: "_actions",
         label: "관리",
@@ -112,7 +118,11 @@ export default function Stores() {
             <button className="iconBtn" title="수정" onClick={() => alert("수정 기능은 다음 단계에서 연결할게요.")}>
               ✏️
             </button>
-            <button className="iconBtn danger" title="삭제" onClick={() => alert("삭제 기능은 다음 단계에서 연결할게요.")}>
+            <button
+              className="iconBtn danger"
+              title="삭제"
+              onClick={() => alert("삭제 기능은 다음 단계에서 연결할게요.")}
+            >
               🗑️
             </button>
           </div>
@@ -160,9 +170,6 @@ export default function Stores() {
       const fd = new FormData();
       fd.append("file", file);
 
-      // 서버 업로드는 head_office_code를 엑셀에 넣는 방식인데,
-      // UX는 "본사 선택 후 업로드"가 자연스러워서
-      // (서버를 바꿀 수 있다면 headOfficeId 기반 업로드로 바꾸는 걸 추천)
       const r = await api.postForm("/master/stores/upload", fd);
       if (!r?.success) {
         alert(r?.message || "업로드 실패");
@@ -179,7 +186,17 @@ export default function Stores() {
 
   return (
     <div className="page">
-      {/* 상단 헤더(피그마 느낌) */}
+      {/* ✅ 상단 “탭” 느낌의 빠른 이동(일단 UI만; 실제 route 이동은 다음 단계에서 App/Layout로 묶는게 정석) */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <button className="btn btnGhost" type="button" onClick={() => window.location.reload()}>
+          본사 관리
+        </button>
+        <button className="btn" type="button">
+          가맹점 관리
+        </button>
+      </div>
+
+      {/* 상단 헤더 */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#6B7280", fontWeight: 700 }}>
@@ -227,7 +244,6 @@ export default function Stores() {
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {/* 엑셀 업로드 */}
           <input
             ref={fileRef}
             type="file"
@@ -247,7 +263,6 @@ export default function Stores() {
             ⬆️ 엑셀 업로드
           </button>
 
-          {/* 가맹점 추가 */}
           <button className="btn" disabled={!headOfficeId} onClick={() => setOpenAdd(true)}>
             ＋ 가맹점 추가
           </button>
@@ -264,7 +279,6 @@ export default function Stores() {
         />
       </div>
 
-      {/* 추가 모달 */}
       <Modal open={openAdd} onClose={() => setOpenAdd(false)} title="가맹점 추가">
         <div style={{ display: "grid", gap: 12 }}>
           <div className="field">
