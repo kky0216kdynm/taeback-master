@@ -21,7 +21,7 @@ export default function Stores({ selectedHeadOffice }) {
     name: "",
     phone: "",
     status: "ACTIVE",
-    auth_code: "",
+    merchant_code: "",
   });
   
 
@@ -75,24 +75,23 @@ export default function Stores({ selectedHeadOffice }) {
       },
 
       {
-        key: "auth_code",
+        key: "merchant_code",
         label: "인증코드",
         width: 180,
         render: (row) => (
-          <span
-            style={{
-              display: "inline-block",
-              padding: "6px 10px",
-              borderRadius: 10,
-              background: "#F3F4F6",
-              fontWeight: 700,
-              letterSpacing: 0.5,
-            }}
-          >
-            {row.auth_code || "-"}
+          <span style={{
+            display: "inline-block",
+            padding: "6px 10px",
+            borderRadius: 10,
+            background: "#F3F4F6",
+            fontWeight: 700,
+            letterSpacing: 0.5,
+          }}>
+            {row.merchant_code || "-"}
           </span>
         ),
       },
+      
       {
         key: "status",
         label: "상태",
@@ -152,7 +151,7 @@ export default function Stores({ selectedHeadOffice }) {
       name: form.name.trim(),
       phone: form.phone.trim() || null,
       status: form.status || "ACTIVE",
-      auth_code: form.auth_code, // ✅ 추가
+      merchant_code: form.merchant_code, // ✅ 추가
     };
     
 
