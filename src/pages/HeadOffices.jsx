@@ -108,7 +108,14 @@ export default function HeadOffices() {
 
   return (
     <div style={{ padding: 24 }}>
-     
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+        }}
+      >
         <div>
           <h1 style={{ margin: 0, fontSize: 28 }}>본사 관리</h1>
           <div style={{ color: "#666", marginTop: 6 }}>각 본사 정보를 관리합니다</div>
