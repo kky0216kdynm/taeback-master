@@ -217,6 +217,26 @@ export default function Stores({ selectedHeadOffice }) {
       <div style={{ height: 22 }} />
 
       {/* ✅ 상품관리처럼: (왼쪽) 본사 선택 / (오른쪽) 업로드+추가 버튼 */}
+      <div style={{ display: "flex",  alignItems: "center", gap: 18 }}>
+        <div style={{ width: 420 }}>
+          <Select
+            value={headOfficeId}
+            onChange={(e) => setHeadOfficeId(e.target.value)}
+            options={headOfficeOptions}
+            placeholder="본사 선택"
+          />
+          <div className="small" style={{ marginTop: 6 }}>
+            엑셀 업로드 컬럼: head_office_code, name, category, price, unit, status(선택)
+          </div>
+        </div>
+
+        <div className="actions">
+          <button className="btnGhost btn" onClick={() => { setUploadResult(null); setOpenUpload(true); }}>
+            엑셀 업로드
+          </button>
+        </div>
+      </div>
+      /*여기랑 다름*/
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
         <select
           value={headOfficeId}
