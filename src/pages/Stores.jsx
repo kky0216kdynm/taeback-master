@@ -195,10 +195,10 @@ export default function Stores({ selectedHeadOffice }) {
       {/* 상단 타이틀 영역 */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 24 }}>
         <div>
-          <h1 style={{ marginTop: 0, marginBottom: 8, fontSize: 44, letterSpacing: -1 }}>
+          <h1 style={{ margin: 0, fontSize: 28 }}>
             {selectedHead ? `${selectedHead.name} - 가맹점 관리` : "가맹점 관리"}
           </h1>
-          <div style={{ color: "#6B7280", fontWeight: 700, fontSize: 22 }}>
+          <div style={{ color: "#666", marginTop: 6 }}>
             {selectedHead ? (
               <>
                 본사코드: <span style={{ fontWeight: 900 }}>{selectedHead.code}</span>
@@ -209,7 +209,7 @@ export default function Stores({ selectedHeadOffice }) {
           </div>
         </div>
       </div>
-
+    
       
 
       
