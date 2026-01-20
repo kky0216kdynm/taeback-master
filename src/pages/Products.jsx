@@ -40,7 +40,6 @@ export default function Products() {
     { key: "name", label: "상품명" },
     { key: "category", label: "카테고리" },
     { key: "price", label: "가격", render: (r) => `${Number(r.price).toLocaleString()}원` },
-    { key: "unit", label: "단위" },
     {
       key: "status",
       label: "상태",
@@ -101,7 +100,12 @@ export default function Products() {
         <FileDrop onFile={async (file) => {
           const fd = new FormData();
           fd.append("file", file);
-          const r = await api("/master/products/upload", { method: "POST", body: fd, isForm: true });
+          const r = await api(`/master/products/batch-zip?headOfficeId=${headOfficeId}`, {
+            method: "POST",
+            body: fd,
+            isForm: true
+          });
+          
           setUploadResult(r);
           await loadProducts(headOfficeId);
         }} />
