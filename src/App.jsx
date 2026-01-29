@@ -42,11 +42,8 @@ export default function App() {
     <Layout
       route={route}
       onRoute={(next) => {
-        // ✅ 사이드바로 stores를 눌러도 정상 이동
+        
         setRoute(next);
-
-        // (선택) 본사/가맹점 흐름을 깔끔하게 하고 싶으면:
-        // - 본사 목록으로 가면 선택 본사 초기화
         if (next === "headOffices") setSelectedHeadOffice(null);
       }}
     >
